@@ -5,7 +5,7 @@ from .models import *
 
 class CuartoResource(resources.ModelResource):
     class Meta:
-        model = Cuarto
+        model = Habitacion
 class CuartoAdmin(ImportExportModelAdmin):
     resource_class=CuartoResource
 
@@ -39,11 +39,17 @@ class FacturaResource(resources.ModelResource):
 class FacturaAdmin(ImportExportModelAdmin):
     resource_class=FacturaResource
 
+class BLoqueResource(resources.ModelResource):
+    class Meta:
+        model = Bloque
+class BloqueAdmin(ImportExportModelAdmin):
+    resource_class=BLoqueResource
 
 
-admin.site.register(Cuarto, CuartoAdmin)
+admin.site.register(Habitacion, CuartoAdmin)
 admin.site.register(Cliente, ClienteAdmin)    
 admin.site.register(Reserva, ReservaAdmin)
 admin.site.register(DiasReserva, DiasReservaAdmin)
 admin.site.register(ServicioAdicional, ServicioAdicionalAdmin)
 admin.site.register(Factura, FacturaAdmin)
+admin.site.register(Bloque, BloqueAdmin)

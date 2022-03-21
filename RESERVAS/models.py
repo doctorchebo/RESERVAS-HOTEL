@@ -3,7 +3,17 @@ from xml.dom.minidom import CharacterData
 from django.db import models
 from django.core.validators import MinValueValidator
 
-class Cuarto(models.Model):    
+class Bloque(models.Model):
+    numero=models.PositiveIntegerField()
+    def __str__(self) -> str:
+        return f'Bloque {self.numero}'
+
+class DiasReserva(models.Model):
+    fecha = models.DateField()
+    def __str__(self):
+        return f'{self.fecha}'
+
+class Habitacion(models.Model):    
     SIMPLE = 'S'
     MATRIMONIAL = 'M'
     KING_SIZE = 'KS'
@@ -16,16 +26,13 @@ class Cuarto(models.Model):
     numero_habitacion = models.IntegerField()
     baño_privado = models.BooleanField(null=True)
     tamaño_cama = models.CharField(max_length=2, choices=TAMAÑO_CAMA, null=True)
-    aire_acondicionado=models.BooleanField(null=True)
+    aire_acondicionado= models.BooleanField(null=True)
     precio = models.PositiveBigIntegerField()
+    bloque= models.ForeignKey(Bloque, on_delete=models.SET_NULL, null=True)
+    reservado= models.BooleanField(null=True)
+    dias_reservado=models.ManyToManyField(DiasReserva, null=True)
     def __str__(self):
         return f'Hab. Nº {self.numero_habitacion}'
-
-class DiasReserva(models.Model):
-    cuarto=models.ForeignKey(Cuarto, on_delete=models.SET_NULL, null=True)
-    fecha = models.DateField()
-    def __str__(self):
-        return f'{self.fecha}'
 
 class Cliente(models.Model):
     TIPO_IDENTIFICACION = (
@@ -82,9 +89,14 @@ class Factura(models.Model):
     
 class ReservaItem(models.Model):
     reserva=models.ForeignKey(Reserva, on_delete=models.CASCADE)
-    cuarto=models.ForeignKey(Cuarto, on_delete=models.CASCADE)
+    cuarto=models.ForeignKey(Habitacion, on_delete=models.CASCADE)
     dias=models.ManyToManyField(DiasReserva)
     precio=models.PositiveBigIntegerField()
 
     class Meta:
         unique_together=[['reserva','cuarto']]
+
+class Review(models.Model):
+    reserva=models.ForeignKey(Reserva, on_delete=models.SET_NULL, null=True)
+    descripcion=models.CharField(max_length=255)
+    creado=models.DateField(auto_now_add=True)

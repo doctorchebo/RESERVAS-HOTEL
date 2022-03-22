@@ -8,11 +8,6 @@ class Bloque(models.Model):
     def __str__(self) -> str:
         return f'Bloque {self.numero}'
 
-class DiasReserva(models.Model):
-    fecha = models.DateField()
-    def __str__(self):
-        return f'{self.fecha}'
-
 class Habitacion(models.Model):    
     SIMPLE = 'S'
     MATRIMONIAL = 'M'
@@ -30,7 +25,8 @@ class Habitacion(models.Model):
     precio = models.PositiveBigIntegerField()
     bloque= models.ForeignKey(Bloque, on_delete=models.SET_NULL, null=True)
     reservado= models.BooleanField(null=True)
-    dias_reservado=models.ManyToManyField(DiasReserva, null=True)
+    fecha_inicial=models.DateField(blank=True, null=True)
+    fecha_final=models.DateField(blank=True, null=True)
     def __str__(self):
         return f'Hab. Nº {self.numero_habitacion}'
 
@@ -86,13 +82,12 @@ class Factura(models.Model):
     reserva = models.ForeignKey(Reserva, on_delete=models.SET_NULL, null=True)
     nombre = models.CharField(max_length=255, blank=True, null=True)
     nit = models.BigIntegerField(blank=True, null=True)
+    creado=models.DateField(auto_now_add=True)
     
 class ReservaItem(models.Model):
-    reserva=models.ForeignKey(Reserva, on_delete=models.CASCADE)
+    reserva=models.ForeignKey(Reserva, on_delete=models.CASCADE, related_name='items')
     cuarto=models.ForeignKey(Habitacion, on_delete=models.CASCADE)
-    dias=models.ManyToManyField(DiasReserva)
-    precio=models.PositiveBigIntegerField()
-
+    dias=models.PositiveBigIntegerField()
     class Meta:
         unique_together=[['reserva','cuarto']]
 

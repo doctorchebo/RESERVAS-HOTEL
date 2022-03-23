@@ -9,8 +9,8 @@ router.register('habitaciones',views.HabitacionesViewSet, basename='habitaciones
 router.register('clientes',views.ClientesViewSet)
 router.register('facturas', views.FacturasViewSet)
 
-reserva_router=routers.NestedDefaultRouter(router,'reservas', lookup='reserva')
-reserva_router.register('items',views.ReservaItemViewSet, basename='item-reserva')
+booking_router=routers.NestedDefaultRouter(router,'reservas', lookup='reserva')
+booking_router.register('bookings',views.BookingViewSet, basename='booking-reserva')
 
-urlpatterns = router.urls + reserva_router.urls
+urlpatterns = router.urls + booking_router.urls
     

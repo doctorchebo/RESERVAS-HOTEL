@@ -14,25 +14,8 @@ from .filters import *
 from .models import *
 from .serializers import *
 
-class ReservaItemViewSet(ModelViewSet):
-    http_method_names=['get','post','patch','delete']
-    def get_serializer_class(self):
-        if self.request.method=='POST':
-            return CrearReservaItemSerializer
-        elif self.request.method=='PATCH':
-            return ActualizarReservaItemSerializer
-        return ReservaItemSerializer
-    def get_queryset(self):
-        return ReservaItem.objects.select_related('cuarto').filter(reserva_id=self.kwargs['reserva_pk'])
-    def get_serializer_context(self):
-        return {'reserva_id': self.kwargs['reserva_pk'], 'request': self.request}
-    def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return Response(status=status.HTTP_201_CREATED)
-
 class ReservasViewSet(ModelViewSet):
+    queryset=Reserva.objects.prefetch_related('bookings').all()
     def get_serializer_class(self):
         if self.request.method=='PUT' or self.request.method=='PATCH': 
             return ReservaActualizarSerializer
@@ -40,8 +23,19 @@ class ReservasViewSet(ModelViewSet):
             return ReservaCrearSerializer
         else:
             return ReservaSerializer
-    queryset=Reserva.objects.prefetch_related('items').all()
-    serializer_class=ReservaSerializer
+    
+class BookingViewSet(ModelViewSet):
+    http_method_names=['post','get','patch','delete']
+    serializer_class=BookingSerializer
+
+    def get_queryset(self):
+        return Booking.objects.filter(reserva_id=self.kwargs['reserva_pk'])
+    def get_serializer_class(self):
+        if self.request.method=='POST':
+            return CrearBookingSerializer
+        return BookingSerializer
+    def get_serializer_context(self):
+        return {'reserva_id':self.kwargs['reserva_pk']}
 
 class ClientesViewSet(ModelViewSet):
     queryset = Cliente.objects.annotate(reservas_count=Count('reservas')).all()
@@ -74,22 +68,15 @@ class HabitacionesViewSet(ModelViewSet):
         if bloque_id is not None:
             queryset = queryset.filter(bloque_id=bloque_id) 
         elif fecha_inicial is not None or fecha_final is not None:
-            # fecha_inicial = datetime.strptime(fecha_inicial, '%Y-%m-%d').date()
-            # fecha_final = datetime.strptime(fecha_inicial, '%Y-%m-%d').date()
             fecha_inicial = datetime.strptime(fecha_inicial,'%Y-%m-%d')-timedelta(days=1)
             fecha_final = datetime.strptime(fecha_final,'%Y-%m-%d')+timedelta(days=1)
 
             queryset = queryset.filter(Q(fecha_inicial__lt=fecha_inicial,fecha_final__lt=fecha_inicial)|Q(fecha_inicial__gt=fecha_final,fecha_final__gt=fecha_final)|Q(fecha_inicial__isnull=True, fecha_final__isnull=True)|Q(fecha_final__lt=fecha_inicial)|Q(fecha_inicial__gt=fecha_final))
-            # queryset = queryset.exclude(queryset)
 
         return queryset
 
     def get_serializer_context(self):
         return {'request':self.request}
-    # def destroy(self, request, *args, **kwargs):
-    #     if Habitacion.objects.filter(pk=kwargs['pk'], dias_reservado__gt=0).count()>0:
-    #         return Response({'mensaje':'No se puede borrar porque la Habitacion está reservada'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
-    #     return super().destroy(request, *args, **kwargs)
 
 class FacturasViewSet(ModelViewSet):
     queryset = Factura.objects.select_related('reserva').all()

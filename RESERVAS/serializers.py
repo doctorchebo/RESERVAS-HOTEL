@@ -1,108 +1,81 @@
 from django.urls import set_urlconf
 from rest_framework import serializers
 from .models import *
+from datetime import timedelta
+from django.db.models import Q
+from datetime import datetime, timedelta, date
 
-# class DiasReservaSerializer(serializers.ModelSerializer):
-#     class Meta:
-#         model = DiasReserva
-#         fields = ['Habitacion','fecha']
-
+# HABITACION
 class HabitacionSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField(read_only=True)
     class Meta:
         model = Habitacion
-        fields = ['id','numero_habitacion','reservado','baño_privado','tamaño_cama','aire_acondicionado','precio','bloque','fecha_inicial','fecha_final']
+        fields = ['id','numero_habitacion','reservado','baño_privado','tamaño_cama','aire_acondicionado','precio','bloque']
 
 class SimpleHabitacionSerializer(serializers.ModelSerializer):
     class Meta:
         model=Habitacion
         fields=['numero_habitacion','reservado']
 
+# CLIENTE
 class ClienteSerializer(serializers.ModelSerializer):
     class Meta:
         model = Cliente
         fields = ['id', 'nombre','apellido','telefono','email','reservas_count']
     reservas_count = serializers.CharField(read_only=True)
 
-class ReservaItemSerializer(serializers.ModelSerializer):
-    cuarto=HabitacionSerializer()
-    precio_total = serializers.SerializerMethodField()
+# ITEM RESERVA  
 
-    def get_precio_total(self, reserva_item:ReservaItem):
-        return reserva_item.dias*reserva_item.cuarto.precio
 
-    class Meta:
-        model=ReservaItem
-        fields=['id','cuarto','dias','fecha_inicial', 'fecha_final', 'precio_total']
-        
-class CrearReservaItemSerializer(serializers.ModelSerializer):
-    class Meta:
-        model=ReservaItem
-        fields=['id','cuarto','dias']
-    def create(self, validated_data):
-        reserva_id=self.context['reserva_id']
-        return ReservaItem.objects.create(reserva_id=reserva_id, **validated_data)
-
-class ActualizarReservaItemSerializer(serializers.ModelSerializer):
-    class Meta:
-        model=ReservaItem
-        fields=['cuarto','dias','fecha_inicial', 'fecha_final']
-
-class SimpleReservaItemSerializer(serializers.ModelSerializer):
-    cuarto=SimpleHabitacionSerializer()
-    class Meta:
-        model=ReservaItem
-        fields=['cuarto','dias']        
-
+# RESERVA
 class ReservaSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField(read_only=True)
     cliente = ClienteSerializer()
-    habs_reservadas = SimpleReservaItemSerializer(source='items', read_only=True, many=True)
     precio_total = serializers.SerializerMethodField()
 
     def get_precio_total (self, reserva:Reserva):
         return sum(item.cuarto.precio*item.dias for item in reserva.items.all())
     class Meta:
         model = Reserva
-        fields = ['id','cliente','metodo_pago','habs_reservadas','precio_total'] 
+        fields = ['id','cliente','metodo_pago','precio_total','estado'] 
     def create(self, validated_data):
         cliente_data = validated_data.pop('cliente')
         cliente = Cliente.objects.create(**cliente_data)
         return Reserva.objects.create(cliente=cliente, **validated_data)      
 
-
 class ReservaActualizarSerializer(serializers.ModelSerializer):
+
     class Meta:
         model=Reserva
-        fields=['estado']
+        fields=['estado',]
 
-class ReservaItemActualizarSerializer(serializers.ModelSerializer):
+class ReservaCrearSerializer(serializers.ModelSerializer):
     class Meta:
-        model=ReservaItem
-        fields=['dias']
+        model=Reserva
+        fields=['cliente']
 
+# FACTURAS
 class FacturaSerializer(serializers.ModelSerializer):
-    items = ReservaItemSerializer(many=True, read_only=True)
     precio_total=serializers.SerializerMethodField()
     def get_precio_total(self, factura:Factura):
-        return sum([item.dias*item.cuarto.precio for item in factura.reserva.items.all()])
+        return sum([(item.cuarto.fecha_final-item.cuarto.fecha_inicial+timedelta(days=1)).days*item.cuarto.precio for item in factura.reserva.items.all()])
     class Meta:
         model=Factura
-        fields=['id','reserva', 'nombre','nit','reserva','items','precio_total','creado']
+        fields=['id','reserva', 'nombre','nit','reserva','precio_total','creado']
 
 class CrearFacturaSerializer(serializers.ModelSerializer):
-    precio_total=serializers.SerializerMethodField()
+    precio_total=serializers.SerializerMethodField(read_only=True)
     def get_precio_total(self, factura:Factura):
-        return sum([item.dias*item.cuarto.precio for item in factura.reserva.items.all()])
+        return sum([(item.cuarto.fecha_final-item.cuarto.fecha_inicial+timedelta(days=1)).days*item.cuarto.precio for item in factura.reserva.items.all()])
     class Meta:
         model=Factura
         fields=['reserva','nombre','nit','precio_total']        
+    
+    def __init__(self, *args, **kwargs):
+        super(CrearFacturaSerializer, self).__init__(*args, **kwargs)
+        self.fields['reserva'] = serializers.ChoiceField(choices=Reserva.objects.filter(facturas__isnull=True))
 
-class ReviewSerializer(serializers.ModelSerializer):
+class BookingSerializer(serializers.ModelSerializer):
     class Meta:
-        model=Review
-        fields=['id', 'reserva', 'descripcion','creado']
-
-    def create(self, validated_data):
-        reserva_id=self.context['reserva_id']
-        return Review.objects.create(reserva_id=reserva_id, **validated_data)
+        model=Booking
+        fields=['reserva','fecha_inicial','fecha_final']

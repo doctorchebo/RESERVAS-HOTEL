@@ -21,35 +21,15 @@ class ReservaResource(resources.ModelResource):
 class ReservaAdmin(ImportExportModelAdmin):
     resource_class=ReservaResource
 
-# class DiasReservaResource(resources.ModelResource):
-#     class Meta:
-#         model = DiasReserva
-# class DiasReservaAdmin(ImportExportModelAdmin):
-#     resource_class=DiasReservaResource
-
-class ServicioAdicionalResource(resources.ModelResource):
-    class Meta:
-        model = ServicioAdicional
-class ServicioAdicionalAdmin(ImportExportModelAdmin):
-    resource_class=ServicioAdicionalResource
-
 class FacturaResource(resources.ModelResource):
     class Meta:
         model = Factura
 class FacturaAdmin(ImportExportModelAdmin):
     resource_class=FacturaResource
 
-class BLoqueResource(resources.ModelResource):
-    class Meta:
-        model = Bloque
-class BloqueAdmin(ImportExportModelAdmin):
-    resource_class=BLoqueResource
 
 
 admin.site.register(Habitacion, CuartoAdmin)
 admin.site.register(Cliente, ClienteAdmin)    
 admin.site.register(Reserva, ReservaAdmin)
-# admin.site.register(DiasReserva, DiasReservaAdmin)
-admin.site.register(ServicioAdicional, ServicioAdicionalAdmin)
 admin.site.register(Factura, FacturaAdmin)
-admin.site.register(Bloque, BloqueAdmin)

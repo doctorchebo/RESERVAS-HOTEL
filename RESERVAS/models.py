@@ -3,11 +3,6 @@ from xml.dom.minidom import CharacterData
 from django.db import models
 from django.core.validators import MinValueValidator
 
-class Bloque(models.Model):
-    numero=models.PositiveIntegerField()
-    def __str__(self) -> str:
-        return f'Bloque {self.numero}'
-
 class Habitacion(models.Model):    
     SIMPLE = 'S'
     MATRIMONIAL = 'M'
@@ -23,10 +18,7 @@ class Habitacion(models.Model):
     tamaño_cama = models.CharField(max_length=2, choices=TAMAÑO_CAMA, null=True)
     aire_acondicionado= models.BooleanField(null=True)
     precio = models.PositiveBigIntegerField()
-    bloque= models.ForeignKey(Bloque, on_delete=models.SET_NULL, null=True)
     reservado= models.BooleanField(null=True)
-    fecha_inicial=models.DateField(blank=True, null=True)
-    fecha_final=models.DateField(blank=True, null=True)
     def __str__(self):
         return f'Hab. Nº {self.numero_habitacion}'
 
@@ -72,26 +64,13 @@ class Reserva(models.Model):
     def __str__(self):
         return f'Reserva Nº {self.id} {self.cliente.apellido} {self.cliente.nombre}'
 
-class ServicioAdicional(models.Model):
-    reserva=models.ForeignKey(Reserva,on_delete=models.CASCADE)
-    nombre = models.CharField(max_length=255)
-    def __str__(self):
-        return f'{self.nombre}'
-
 class Factura(models.Model):
-    reserva = models.ForeignKey(Reserva, on_delete=models.SET_NULL, null=True)
+    reserva = models.ForeignKey(Reserva, on_delete=models.SET_NULL, null=True, related_name='facturas')
     nombre = models.CharField(max_length=255, blank=True, null=True)
     nit = models.BigIntegerField(blank=True, null=True)
     creado=models.DateField(auto_now_add=True)
-    
-class ReservaItem(models.Model):
-    reserva=models.ForeignKey(Reserva, on_delete=models.CASCADE, related_name='items')
-    cuarto=models.ForeignKey(Habitacion, on_delete=models.CASCADE)
-    dias=models.PositiveBigIntegerField()
-    class Meta:
-        unique_together=[['reserva','cuarto']]
 
-class Review(models.Model):
-    reserva=models.ForeignKey(Reserva, on_delete=models.SET_NULL, null=True)
-    descripcion=models.CharField(max_length=255)
-    creado=models.DateField(auto_now_add=True)
+class Booking(models.Model):
+    habitacion=models.ForeignKey(Habitacion, on_delete=models.CASCADE)
+    fecha_inicial=models.DateField(blank=True, null=True)
+    fecha_final=models.DateField(blank=True, null=True)

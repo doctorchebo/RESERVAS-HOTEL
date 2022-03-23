@@ -1,12 +1,12 @@
 from django_filters.rest_framework import DjangoFilterBackend
-from django.db.models import Count
+from django.db.models import Count, Q
 from rest_framework.generics import *
 from rest_framework.filters import SearchFilter, OrderingFilter
 from rest_framework.mixins import *
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.response import Response
 from rest_framework import status
-from datetime import datetime
+from datetime import datetime, date, timedelta
 
 
 from .pagination import DefaultPagination
@@ -20,23 +20,26 @@ class ReservaItemViewSet(ModelViewSet):
         if self.request.method=='POST':
             return CrearReservaItemSerializer
         elif self.request.method=='PATCH':
-            print('PUT')
             return ActualizarReservaItemSerializer
         return ReservaItemSerializer
     def get_queryset(self):
-        return ReservaItem.objects.filter(reserva_id=self.kwargs['reserva_pk'])
+        return ReservaItem.objects.select_related('cuarto').filter(reserva_id=self.kwargs['reserva_pk'])
     def get_serializer_context(self):
-        return {'reserva_id': self.kwargs['reserva_pk']}
-    
-class ReviewViewSet(ModelViewSet):
-    serializer_class=ReviewSerializer
-    def get_queryset(self):
-        return Review.objects.filter(reserva_id=self.kwargs['reserva_pk'])
-        
-    def get_serializer_context(self):
-        return {'reserva_id':self.kwargs['reserva_pk']}
+        return {'reserva_id': self.kwargs['reserva_pk'], 'request': self.request}
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(status=status.HTTP_201_CREATED)
 
-class ReservasViewSet(ModelViewSet): 
+class ReservasViewSet(ModelViewSet):
+    def get_serializer_class(self):
+        if self.request.method=='PUT' or self.request.method=='PATCH': 
+            return ReservaActualizarSerializer
+        elif self.request.method=='POST':
+            return ReservaCrearSerializer
+        else:
+            return ReservaSerializer
     queryset=Reserva.objects.prefetch_related('items').all()
     serializer_class=ReservaSerializer
 
@@ -65,8 +68,20 @@ class HabitacionesViewSet(ModelViewSet):
     def get_queryset(self):
         queryset=Habitacion.objects.all()
         bloque_id = self.request.query_params.get('bloque_id')
+        fecha_inicial = self.request.query_params.get('fecha_inicial')
+        fecha_final = self.request.query_params.get('fecha_final')
+
         if bloque_id is not None:
             queryset = queryset.filter(bloque_id=bloque_id) 
+        elif fecha_inicial is not None or fecha_final is not None:
+            # fecha_inicial = datetime.strptime(fecha_inicial, '%Y-%m-%d').date()
+            # fecha_final = datetime.strptime(fecha_inicial, '%Y-%m-%d').date()
+            fecha_inicial = datetime.strptime(fecha_inicial,'%Y-%m-%d')-timedelta(days=1)
+            fecha_final = datetime.strptime(fecha_final,'%Y-%m-%d')+timedelta(days=1)
+
+            queryset = queryset.filter(Q(fecha_inicial__lt=fecha_inicial,fecha_final__lt=fecha_inicial)|Q(fecha_inicial__gt=fecha_final,fecha_final__gt=fecha_final)|Q(fecha_inicial__isnull=True, fecha_final__isnull=True)|Q(fecha_final__lt=fecha_inicial)|Q(fecha_inicial__gt=fecha_final))
+            # queryset = queryset.exclude(queryset)
+
         return queryset
 
     def get_serializer_context(self):
@@ -77,7 +92,7 @@ class HabitacionesViewSet(ModelViewSet):
     #     return super().destroy(request, *args, **kwargs)
 
 class FacturasViewSet(ModelViewSet):
-    queryset=Factura.objects.all()
+    queryset = Factura.objects.select_related('reserva').all()
     def get_serializer_class(self):
         if self.request.method=='POST':
             return CrearFacturaSerializer

@@ -10,6 +10,11 @@ mysqlclient = "*"
 django-import-export = "*"
 drf-nested-routers = "*"
 django-filter = "*"
+djoser = "*"
+djangorestframework-simplejwt = "*"
+pillow = "*"
+django-cors-headers = "*"
+django-debug-toolbar = "*"
 
 [dev-packages]
 

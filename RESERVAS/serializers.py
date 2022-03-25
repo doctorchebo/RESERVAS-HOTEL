@@ -5,12 +5,25 @@ from .models import *
 from datetime import timedelta
 from django.db.models import Q
 from datetime import datetime, timedelta, date
+from .signals import reserva_creada
+
+
+# IMAGEN HABITACION
+class ImagenHabitacionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model=ImagenHabitacion
+        fields=['id','imagen']
+    def create(self, validated_data):
+        habitacion_id = self.context['habitacion_id']
+        return ImagenHabitacion.objects.create(habitacion_id = habitacion_id, **validated_data)
 
 # HABITACION
 class HabitacionSerializer(serializers.ModelSerializer):
+    imagenes = ImagenHabitacionSerializer(many=True, read_only=True)
     class Meta:
         model = Habitacion
-        fields = ['id','nombre','reservado','precio']
+        fields = ['id','nombre','reservado','precio', 'imagenes']
+
 class SimpleHabitacionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Habitacion
@@ -87,9 +100,10 @@ class CrearBookingSerializer(serializers.ModelSerializer):
 
 # CLIENTE
 class ClienteSerializer(serializers.ModelSerializer):
+    usuario_id=serializers.IntegerField(read_only=True)
     class Meta:
         model = Cliente
-        fields = ['id', 'nombre','apellido','telefono','email']
+        fields = ['id', 'usuario_id','tipo_id','numero_id','telefono','fecha_nacimiento']
 
 # RESERVA
 class ReservaSerializer(serializers.ModelSerializer):
@@ -97,34 +111,20 @@ class ReservaSerializer(serializers.ModelSerializer):
     precio_total = serializers.SerializerMethodField()
     def get_precio_total(self, reserva:Reserva):
         return sum([booking.habitacion.precio*(int(booking.fecha_final.strftime("%Y%m%d"))-int(booking.fecha_inicial.strftime("%Y%m%d"))+1) for booking in reserva.bookings.all()])
-    
     class Meta:
         model = Reserva
-        fields = ['id','cliente','metodo_pago','estado','precio_total'] 
+        fields = ['id','cliente','metodo_pago','estado','precio_total']      
+
+class ReservaCrearSerializer(serializers.Serializer):
     def create(self, validated_data):
-        cliente_data = validated_data.pop('cliente')
-        cliente = Cliente.objects.create(**cliente_data)
-        return Reserva.objects.create(cliente=cliente, **validated_data)      
+        cliente = Cliente.objects.get(usuario_id=self.context['usuario_id'])
+        reserva_creada.send_robust(self.__class__, cliente=cliente)
+        return Reserva.objects.create(cliente=cliente)
 
 class ReservaActualizarSerializer(serializers.ModelSerializer):
     class Meta:
         model=Reserva
         fields=['estado']
-
-class ReservaCrearSerializer(serializers.ModelSerializer):
-    id = serializers.IntegerField(default=9999999)
-    cliente = ClienteSerializer()
-    class Meta:
-        model=Reserva
-        fields=['id','cliente']
-    def create(self, validated_data):
-        cliente_data=validated_data.pop('cliente')
-        id=validated_data.pop('id')
-        try:
-            cliente = Cliente.objects.get(pk=id)
-        except:
-            cliente = Cliente.objects.create(**cliente_data)
-        return Reserva.objects.create(cliente=cliente)
 
 # FACTURAS
 class FacturaSerializer(serializers.ModelSerializer):

@@ -1,5 +1,7 @@
+from django.conf import settings
 from django.db import models
 from django.core.validators import MinValueValidator
+from .validators import validar_tamaño_imagen
 
 class Cliente(models.Model):
     TIPO_IDENTIFICACION = (
@@ -7,15 +9,17 @@ class Cliente(models.Model):
         ('L', 'Licencia de Conducir'),
         ('P', 'Pasaporte'),
     )
-    nombre = models.CharField(max_length=255, blank=True, null=True)
-    apellido = models.CharField(max_length=255, blank=True, null=True)
     tipo_id = models.CharField(max_length=3, choices=TIPO_IDENTIFICACION, blank=True, null=True)
     numero_id = models.CharField(max_length=50, blank=True, null=True)
     telefono = models.BigIntegerField(validators=[MinValueValidator(0)], blank=True, null=True)
-    email = models.EmailField(max_length=255, blank=True, null=True)
+    fecha_nacimiento=models.DateField(blank=True, null=True)
+    usuario = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     def __str__(self):
-        return f'{self.nombre} {self.apellido}'
-
+        return f'{self.id} {self.usuario}'
+    class Meta:
+        permissions=[
+            ('ver_historial','Puede ver historial'),
+        ]
 class Reserva(models.Model):
     PENDIENTE = 'P'
     PAGADO = 'A'
@@ -41,7 +45,7 @@ class Reserva(models.Model):
     creado = models.DateField(auto_now_add=True, null=True)
     modificado = models.DateField(auto_now=True, null=True)
     def __str__(self):
-        return f'Reserva Nº {self.id} {self.cliente.apellido} {self.cliente.nombre}'
+        return f'Reserva Nº {self.id} {self.cliente.usuario.last_name} {self.cliente.usuario.first_name}'
 
 class Habitacion(models.Model):    
     SIMPLE = 'S'
@@ -54,10 +58,20 @@ class Habitacion(models.Model):
         (SIMPLE, 'Simple'),
     )
     nombre = models.CharField(max_length=255, blank=True, null=True)
+    aire_acondicionado = models.BooleanField(default=False)
+    slug = models.SlugField()
     precio = models.PositiveBigIntegerField()
     reservado= models.BooleanField(null=True)
+    class Meta:
+        indexes = [
+            models.Index(fields=['nombre'])
+        ]
     def __str__(self):
         return f'Hab. Nº {self.nombre}'
+
+class ImagenHabitacion(models.Model):
+    habitacion = models.ForeignKey(Habitacion, on_delete=models.CASCADE, related_name='imagenes')
+    imagen = models.ImageField(upload_to='RESERVAS/images', validators=[validar_tamaño_imagen])
 
 class Booking(models.Model):
     reserva = models.ForeignKey(Reserva, on_delete=models.CASCADE, related_name='bookings')
